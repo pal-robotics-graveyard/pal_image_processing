@@ -1,9 +1,10 @@
 <stack>
-  <description brief="pal_image_processing">pal_image_processing</description>
+  <description brief="pal_image_processing">
+    Image processing helper packages.
+  </description>
   <author>Maintained by Jordi Pages</author>
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/pal_image_processing</url>
   <depend stack="ros" />
-
 </stack>
