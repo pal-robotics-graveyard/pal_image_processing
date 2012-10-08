@@ -16,6 +16,9 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
+#modify the include path to find the boost headers
+rosbuild_add_boost_directories()
+
 #add dynamic reconfigure api
 rosbuild_find_ros_package(dynamic_reconfigure)
 include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
@@ -29,6 +32,10 @@ rosbuild_add_executable(template_segmentation src/template_segmentation.cpp
 
 rosbuild_add_executable(histogram_segmentation src/histogram_segmentation.cpp
                                                src/histogram.cpp)
+rosbuild_link_boost(histogram_segmentation system filesystem)
+
+rosbuild_add_library(${PROJECT_NAME} src/image_processing.cpp)
+
 
 #uncomment if you have defined messages
 #rosbuild_genmsg()

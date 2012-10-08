@@ -37,13 +37,34 @@
 #ifndef _PAL_HISTOGRAM_UTIL_H_
 #define _PAL_HISTOGRAM_UTIL_H_
 
+#include <vector>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+
 namespace pal_vision_util
 {
-    //compute and return a HSV color histogram of a given image
-    cv::MatND calcHSVHist(const cv::Mat& src);
+    /**
+     * @brief calcHSVHist compute and return a Hue-Saturation histogram of a given image
+     * @param src
+     * @param histogram
+     */
+    void calcHSVHist(const cv::Mat& src, cv::MatND& histogram);
+
+    /**
+     * @brief calcHSVHist compute a Hue-Saturation for each given image
+     * @param src
+     * @param histogram
+     */
+    void calcHSVHist(const std::vector<cv::Mat>& src, std::vector<cv::MatND>& histograms);
+
+    /**
+     * @brief calcHSVHist compute and return Hue-Saturation histogram of a given set of images
+     * @param src
+     * @param histograms
+     */
+    void calcHSVHist(const std::vector<cv::Mat>& src, cv::MatND& histogram);
 
     //transform a histogram into an image
     cv::Mat histogramImage(const cv::MatND& hist);

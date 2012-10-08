@@ -42,6 +42,7 @@
   * in histogram_segmentation.cpp and the corresponding cfg file.
   */
 
+#include <boost/filesystem.hpp>
 
 #include <ros/ros.h>
 #include <opencv2/core/core.hpp>
@@ -55,7 +56,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <pal_vision_segmentation/HistogramSegmentConfig.h>
-#include "image_processing.h"
+#include <pal_vision_segmentation/image_processing.h>
 #include "histogram.h"
 
 /***Variables used in callbacks***/
@@ -106,8 +107,12 @@ void imageCb(const sensor_msgs::ImageConstPtr& msg)
         // we compute the histogram from the 0-th and 1-st channels
         int channels[] = {0, 1};
 
+        //back-projection takes every pixel in hsv and checks in what bin of target_hist belongs to. Then, the value of
+        //the bin is stored in backProject in the same coordinates as the pixel
         cv::calcBackProject(&hsv, 1, channels, target_hist, backProject, ranges, 1, true);
-        cv::normalize(backProject, backProject, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+
+        //normalization is not necessary as the histogram target_hist was already normalized
+        //cv::normalize(backProject, backProject, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
         cv::threshold(backProject, backProject, threshold, 255, CV_THRESH_BINARY);
 
         cv::Mat mask, tmp1;
@@ -177,6 +182,67 @@ void reconf_callback(pal_vision_segmentation::HistogramSegmentConfig &config, ui
     erode_size = config.erode_size;
 }
 
+void computeHistogramFromFile(const std::string& template_path, cv::MatND& hist)
+{
+  if ( !boost::filesystem::is_directory(template_path) ) //if the given path is not a folder
+  {
+    if ( !boost::filesystem::is_regular_file(template_path) )
+      throw std::runtime_error("The given path is not a file: " + template_path);
+
+    cv::Mat raw_template = cv::imread(template_path);
+    pal_vision_util::calcHSVHist(raw_template, hist);
+    cv::normalize(hist, hist, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+  }
+  else //otherwise, it should be a folder
+  {
+    boost::filesystem::directory_iterator end_iter;
+    std::vector<cv::Mat> images;
+    for( boost::filesystem::directory_iterator dir_iter(template_path) ; dir_iter != end_iter ; ++dir_iter)
+    {
+      if ( boost::filesystem::is_regular_file(dir_iter->status()) )
+      {
+        std::string fullPathFileName = dir_iter->path().string();
+        cv::Mat raw_template = cv::imread(fullPathFileName);
+        if ( !raw_template.empty() )
+          images.push_back(raw_template);
+      }
+    }
+    if ( !images.empty() )
+    {
+      //pal_vision_util::calcHSVHist(images, hist);
+      std::vector<cv::MatND> hists;
+      //compute a separate histogram for each image
+      pal_vision_util::calcHSVHist(images, hists);
+
+      //create a new histogram where every bin takes the maximum value if any of the histogram's bin value is
+      //larger than the threshold
+      for (int h = 0; h < hists[0].rows; ++h)
+        for (int s = 0; s < hists[0].cols; ++s)
+        {
+          int i = 0;
+          bool found = false;
+          while ( i < hists.size() && !found )
+          {
+           if ( hists[i].at<float>(h, s) > threshold )
+           {
+              hists[0].at<float>(h, s) = 255;
+              found = true;
+           }
+           ++i;
+          }
+          if ( !found )
+            hists[0].at<float>(h, s) = 0;
+        }
+      hist = hists[0].clone();
+    }
+    else
+      throw std::runtime_error("No images found in the given path: " + template_path);
+  }
+
+//  cv::imshow("histogram", pal_vision_util::histogramImage(hist));
+//  cv::waitKey(0);
+}
+
 int main(int argc, char *argv[] )
 {
     ros::init(argc, argv, "histogram_segmentation"); //initialize with a default name
@@ -194,10 +260,9 @@ int main(int argc, char *argv[] )
     }
 
     std::string template_path(argv[1]);
-    ROS_INFO("%s", template_path.c_str());
-    cv::Mat raw_template = cv::imread(template_path);
-    target_hist = pal_vision_util::calcHSVHist(raw_template);
-    cv::normalize(target_hist, target_hist, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+    ROS_INFO_STREAM("Computing histogram from: " << template_path);
+
+    computeHistogramFromFile( template_path, target_hist );
 
     image_transport::ImageTransport it(nh);
     image_transport::Subscriber rect_sub = it.subscribe("/image", 1, &imageCb);

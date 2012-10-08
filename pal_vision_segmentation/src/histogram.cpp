@@ -35,12 +35,16 @@
 /** \author Bence Magyar */
 
 
+#include <ros/ros.h>
+
 #include "histogram.h"
+
+#include <boost/foreach.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
 namespace pal_vision_util
 {
-    cv::MatND calcHSVHist(const cv::Mat& src)
+    void calcHSVHist(const cv::Mat& src, cv::MatND& histogram)
     {
         cv::Mat hsv;
         cv::cvtColor(src, hsv, CV_BGR2HSV);
@@ -54,17 +58,56 @@ namespace pal_vision_util
         // 255 (pure spectrum color)
         float sranges[] = { 0, 256 };
         const float* ranges[] = { hranges, sranges };
-        cv::MatND hist;
+
         // we compute the histogram from the 0-th and 1-st channels
         int channels[] = {0, 1};
 
         cv::calcHist( &hsv, 1, channels, cv::Mat(), // do not use mask
-                  hist, 2, histSize, ranges,
+                  histogram, 2, histSize, ranges,
                   true, // the histogram is uniform
                   false );
-
-        return hist;
     }
+
+    void calcHSVHist(const std::vector<cv::Mat>& src, std::vector<cv::MatND>& histograms)
+    {
+      histograms.clear();
+
+      BOOST_FOREACH(const cv::Mat& mat, src)
+      {
+        cv::MatND hist;
+        calcHSVHist(mat, hist);
+        histograms.push_back(hist.clone());
+      }
+    }
+
+    void calcHSVHist(const std::vector<cv::Mat>& src, cv::MatND& histogram)
+    {
+        std::vector<cv::Mat> hsv;
+        BOOST_FOREACH(const cv::Mat& mat, src)
+        {
+          cv::Mat hsvMat;
+          cv::cvtColor(mat, hsvMat, CV_BGR2HSV);
+          hsv.push_back(hsvMat);
+        }
+        // Quantize the hue to 30 levels
+        // and the saturation to 32 levels
+        int hbins = 30, sbins = 32;
+        int histSize[] = {hbins, sbins};
+        // hue varies from 0 to 179, see cvtColor
+        float hranges[] = { 0, 180 };
+        // saturation varies from 0 (black-gray-white) to
+        // 255 (pure spectrum color)
+        float sranges[] = { 0, 256 };
+        const float* ranges[] = { hranges, sranges };
+
+        // we compute the histogram from the 0-th and 1-st channels
+        int channels[] = {0, 1};
+        cv::calcHist( hsv.data(), hsv.size(), channels, cv::Mat(), // do not use mask
+                  histogram, 2, histSize, ranges,
+                  true, // the histogram is uniform
+                  false );
+    }
+
 
     cv::Mat histogramImage(const cv::MatND& hist)
     {

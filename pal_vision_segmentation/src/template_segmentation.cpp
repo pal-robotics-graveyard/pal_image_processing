@@ -51,7 +51,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <pal_vision_segmentation/TemplateSegmentConfig.h>
-#include "image_processing.h"
+#include <pal_vision_segmentation/image_processing.h>
 
 /***Variables used in callbacks***/
 image_transport::Publisher mask_pub;

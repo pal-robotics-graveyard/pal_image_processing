@@ -16,6 +16,12 @@
   <depend package="cv_bridge"/>
   <depend package="image_transport"/>
   <depend package="geometry_msgs"/>
+
+  <export>
+    <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lpal_vision_segmentation"/>
+    <rosdoc config="rosdoc.yaml" />
+  </export>
+
 </package>
 
 
