@@ -37,7 +37,7 @@
 #ifndef __PAL_IMAGE_PROCESSING_H__
 #define __PAL_IMAGE_PROCESSING_H__
 
-#include <opencv/cv.h>
+//#include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
 
 #include <vector>

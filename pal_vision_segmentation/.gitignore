@@ -1,0 +1,7 @@
+bin
+build
+cfg/*.cfgc
+cfg/cpp
+docs
+lib
+src/pal_vision_segmentation
