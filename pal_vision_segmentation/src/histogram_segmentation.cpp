@@ -57,7 +57,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <pal_vision_segmentation/HistogramSegmentConfig.h>
 #include <pal_vision_segmentation/image_processing.h>
-#include "histogram.h"
+#include <pal_vision_segmentation/histogram.h>
 
 /***Variables used in callbacks***/
 image_transport::Publisher mask_pub;
@@ -91,29 +91,8 @@ void imageCb(const sensor_msgs::ImageConstPtr& msg)
 
         image_rect = cv_ptr->image;
 
-        //double ticksBefore = cv::getTickCount();
-
         cv::Mat backProject;
-        cv::Mat hsv;
-        cv::cvtColor(image_rect, hsv, CV_BGR2HSV);
-        // Quantize the hue to 30 levels
-        // and the saturation to 32 levels
-        // hue varies from 0 to 179, see cvtColor
-        float hranges[] = { 0, 180 };
-        // saturation varies from 0 (black-gray-white) to
-        // 255 (pure spectrum color)
-        float sranges[] = { 0, 256 };
-        const float* ranges[] = { hranges, sranges };
-        // we compute the histogram from the 0-th and 1-st channels
-        int channels[] = {0, 1};
-
-        //back-projection takes every pixel in hsv and checks in what bin of target_hist belongs to. Then, the value of
-        //the bin is stored in backProject in the same coordinates as the pixel
-        cv::calcBackProject(&hsv, 1, channels, target_hist, backProject, ranges, 1, true);
-
-        //normalization is not necessary as the histogram target_hist was already normalized
-        //cv::normalize(backProject, backProject, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
-        cv::threshold(backProject, backProject, threshold, 255, CV_THRESH_BINARY);
+        pal_vision_util::backProject(image_rect, target_hist, threshold, backProject);
 
         cv::Mat mask, tmp1;
 
@@ -167,9 +146,6 @@ void imageCb(const sensor_msgs::ImageConstPtr& msg)
             debug_msg.image = backProject;
             debug_pub.publish(*debug_msg.toImageMsg());
         }
-
-        //    ROS_INFO("imageCb runtime: %f ms",
-        //             1000*(cv::getTickCount() - ticksBefore)/cv::getTickFrequency());
     }
 }
 
@@ -192,6 +168,7 @@ void computeHistogramFromFile(const std::string& template_path, cv::MatND& hist)
     cv::Mat raw_template = cv::imread(template_path);
     pal_vision_util::calcHSVHist(raw_template, hist);
     cv::normalize(hist, hist, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+    cv::threshold(hist, hist, 128, 255, cv::THRESH_BINARY);            //all those bin values > threshold are set to 255, otherwise 0
   }
   else //otherwise, it should be a folder
   {
@@ -238,9 +215,6 @@ void computeHistogramFromFile(const std::string& template_path, cv::MatND& hist)
     else
       throw std::runtime_error("No images found in the given path: " + template_path);
   }
-
-//  cv::imshow("histogram", pal_vision_util::histogramImage(hist));
-//  cv::waitKey(0);
 }
 
 int main(int argc, char *argv[] )

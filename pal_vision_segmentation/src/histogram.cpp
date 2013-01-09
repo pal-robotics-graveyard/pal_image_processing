@@ -37,7 +37,7 @@
 
 #include <ros/ros.h>
 
-#include "histogram.h"
+#include <pal_vision_segmentation/histogram.h>
 
 #include <boost/foreach.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -133,13 +133,67 @@ namespace pal_vision_util
         return histImg;
     }
 
-    void showHist(const cv::MatND& hist)
+    void showHist(const cv::MatND& hist, bool waitKey)
     {
         cv::Mat histImg = histogramImage(hist);
 
         cv::namedWindow( "H-S Histogram", 1 );
         cv::imshow( "H-S Histogram", histImg );
-        cv::waitKey();
+        if ( waitKey )
+          cv::waitKey();
+    }
+
+    void backProject(const cv::Mat& image,
+                     const cv::MatND& hist,
+                     int threshold,
+                     cv::Mat& result,
+                     int dilateIterations,
+                     int dilateSize,
+                     int erodeIterations,
+                     int erodeSize)
+    {
+      cv::Mat hsv;
+      cv::cvtColor(image, hsv, CV_BGR2HSV);
+      // Quantize the hue to 30 levels
+      // and the saturation to 32 levels
+      // hue varies from 0 to 179, see cvtColor
+      float hranges[] = { 0, 180 };
+      // saturation varies from 0 (black-gray-white) to
+      // 255 (pure spectrum color)
+      float sranges[] = { 0, 256 };
+      const float* ranges[] = { hranges, sranges };
+      // we compute the histogram from the 0-th and 1-st channels
+      int channels[] = {0, 1};
+
+      //back-projection takes every pixel in hsv and checks in what bin of target_hist belongs to. Then, the value of
+      //the bin is stored in backProject in the same coordinates as the pixel
+      cv::calcBackProject(&hsv, 1, channels, hist, result, ranges, 1, true);
+
+      //normalization is not necessary as the histogram target_hist was already normalized
+      //cv::normalize(backProject, backProject, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+      cv::threshold(result, result, threshold, 255, CV_THRESH_BINARY);
+
+      cv::Mat tmp1, tmp2;
+
+      if ( dilateIterations == 0 && erodeIterations == 0 )
+          return;
+
+      tmp1 = result;
+
+      if ( dilateIterations > 0 )
+      {
+          cv::dilate(tmp1, erodeIterations == 0 ? result: tmp2,
+                     cv::Mat::ones(dilateSize, dilateSize, CV_8UC1),
+                     cv::Point(-1, -1), dilateIterations);
+      }
+
+      if ( erodeIterations > 0 )
+      {
+          cv::erode(dilateIterations == 0 ? tmp1 : tmp2, result,
+                    cv::Mat::ones(erodeSize, erodeSize, CV_8UC1),
+                    cv::Point(-1, -1), erodeIterations);
+      }
+
     }
 
 }

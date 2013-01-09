@@ -32,9 +32,11 @@ rosbuild_add_executable(template_segmentation src/template_segmentation.cpp
 
 rosbuild_add_executable(histogram_segmentation src/histogram_segmentation.cpp
                                                src/histogram.cpp)
+
 rosbuild_link_boost(histogram_segmentation system filesystem)
 
-rosbuild_add_library(${PROJECT_NAME} src/image_processing.cpp)
+rosbuild_add_library(${PROJECT_NAME} src/image_processing.cpp src/histogram.cpp)
+rosbuild_add_library(histogram src/histogram.cpp)
 
 
 #uncomment if you have defined messages
@@ -49,3 +51,11 @@ rosbuild_add_library(${PROJECT_NAME} src/image_processing.cpp)
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
+
+################################
+# Unit Tests
+################################
+# Add test cpp file
+rosbuild_add_gtest(histogram_segmentation_unit_test pal_test/histogram_segmentation_unit_test.cpp TIMEOUT 30.0)
+target_link_libraries(histogram_segmentation_unit_test histogram)
+
